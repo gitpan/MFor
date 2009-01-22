@@ -1,0 +1,8 @@
+Changes
+example/mfor.pl
+lib/MFor.pm
+Makefile.PL
+MANIFEST
+README
+t/MFor.t
+META.yml                                 Module meta-data (added by MakeMaker)
