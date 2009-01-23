@@ -1,15 +1,29 @@
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl MFor.t'
-
-#########################
-
-# change 'tests => 1' to 'tests => last_test_to_print';
-
-use Test::More tests => 1;
+use Test::More tests => 73;
 BEGIN { use_ok('MFor') };
 
-#########################
 
-# Insert your test code below, the Test::More module is use()ed here so read
-# its man page ( perldoc Test::More ) for help writing this test script.
+use MFor;
 
+my $output = '';
+open FH , ">" , \$output;
+mfor {
+  print FH join( '-' , @_ ) . "\n";
+} [
+    [ 1 .. 6 ],
+    [ qw/a b c/ ],
+    [ 'a' .. 'd' ],
+];
+close FH;
+
+my @lines = split /\n/ , $output;
+# warn Dumper( @lines );use Data::Dumper;
+
+for my $e1 ( 1 .. 6 ) {
+  for my $e2 ( qw/a b c/ ) {
+    for my $e3 ( 'a' .. 'd' ) {
+      my $line = shift @lines;
+      chomp $line;
+      is( $line , join('-',$e1,$e2,$e3) );
+    }
+  }
+}

@@ -4,7 +4,7 @@ use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(&mfor);
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 sub mfor(&@);
 sub mfor(&@) {
