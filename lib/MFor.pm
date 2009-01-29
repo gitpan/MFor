@@ -4,39 +4,34 @@ use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(&mfor);
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 sub mfor(&@);
 sub mfor(&@) {
-  my $c_r = shift;
+  my $cr = shift;
   my $arrs = shift;
-
-  my $arr_lev = shift if ( @_ );
-  my $arr_idx = shift if ( @_ );
+  my ($arr_lev,$arr_idx) = @_ if ( @_ );
 
   $arr_lev ||= 0;
+  my $arr_sz = scalar(@$arrs);
   unless ($arr_idx) {
-    push @$arr_idx,0 for ( 1 .. scalar @$arrs );
+    push @$arr_idx,0 for ( 1 .. $arr_sz  );
   }
-  my $arr_size = scalar(@$arrs);
-  if( $arr_size == $arr_lev + 1 ) {
-    my $cur_arr = $arrs->[ $arr_lev ] ;
-    my $idx     = scalar(@$cur_arr);
+  my $cur_arr = $arrs->[ $arr_lev ] ;
+  my $idx     = scalar(@$cur_arr);
+  if( $arr_sz == $arr_lev + 1 ) {
+    my @args = ();
+    my $tlev = 0;
+    push @args , $arrs->[ $tlev++ ]->[ $_ ] for ( @$arr_idx );
     for my $i ( 0 .. $idx-1 ) {
-      $arr_idx->[ $arr_lev ] = $i ;
-      my ($lev,@args) ;
-      $lev = 0;
-      push @args , $arrs->[ $lev++ ]->[ $_ ] for ( @$arr_idx );
-      $c_r->(  @args  );
+      $args[ $tlev - 1 ] = $arrs->[ $tlev - 1 ]->[ $i ];
+      $cr->( @args );
     }
-    $arr_idx->[ $arr_lev ] = 0 ;
   } 
   else {
-    my $cur_arr = $arrs->[ $arr_lev ];
-    my $idx = scalar(@$cur_arr);
     for my $i ( 0 .. $idx-1  ) {
       $arr_idx->[ $arr_lev ] = $i ;
-      mfor { &$c_r } $arrs,$arr_lev + 1,$arr_idx;
+      mfor { &$cr } $arrs,$arr_lev + 1,$arr_idx;
     }
     $arr_idx->[ $arr_lev ] = 0 ;
   }
@@ -44,11 +39,10 @@ sub mfor(&@) {
 1;
 
 __END__
-# Below is stub documentation for your module. You'd better edit it!
 
 =head1 NAME
 
-MFor - A moudle for multi-dimension looping.
+MFor - A module for multi-dimension looping.
 
 =head1 SYNOPSIS
 
@@ -59,14 +53,14 @@ MFor - A moudle for multi-dimension looping.
   }  [
        [ qw/a b c/ ],
        [ qw/x y z/ ],
-       [ qw/1 2 3 4 5 6 7/ ],
+       [ 1 .. 7 ],
   ];
 
-instead of:
+insteads of:
 
   for my $a ( qw/a b c/ ) {
     for my $b ( qw/x y z/ ) {
-      for my $c ( qw/1 2 3 4 5 6 7/ ) {
+      for my $c (  1 .. 7 ) {
         print "Looping..  " , join(',',$a,$b,$c) , "\n";
       }
     }

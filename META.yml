@@ -1,7 +1,7 @@
 --- #YAML:1.0
 name:                MFor
-version:             0.02
-abstract:            A moudle for multi-dimension looping.
+version:             0.03
+abstract:            A module for multi-dimension looping.
 license:             ~
 author:              
     - Lin Yo-An <cornelius.howl@gmail.com>
