@@ -4,7 +4,7 @@ use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(&mfor);
-our $VERSION = '0.05';
+our $VERSION = '0.051';
 
 # sub , (hash name) array ref , (arrays) array ref , scalar , scalar 
 # sub , (hash name) array ref , (arrays) array ref 
@@ -194,6 +194,16 @@ MFor - A module for multi-dimension looping.
        [ 1 .. 7 ],
   ];
 
+or
+
+  MFor->it( 1 .. 7 )->it(  'a' ... 'z' )->do( sub {
+
+      # do something 
+      my @args = @_;
+
+
+  });
+
 insteads of:
 
   for my $a ( qw/a b c/ ) {
@@ -204,20 +214,38 @@ insteads of:
     }
   }
 
+=head2 mfor 
 
-Iterator!
+    mfor {
+        my @args = @_;  # get a,x,1 in first loop
+        print "Looping..  " , join(',',@_) , "\n";
+    }  [
+        [ qw/a b c/ ],
+        [ qw/x y z/ ],
+        [ 1 .. 7 ],
+    ];
 
-    it({ L1 => qw|a b c| })->it({ L2 =>  qw|X Y Z| })
+=head2 it
+
+iterator with hash reference
+
+    MFor->it({ L1 => qw|a b c| })->it({ L2 =>  qw|X Y Z| })
     ->do(sub {
-		my @args = @_;
+		my $args = shift;
+
+        print $args->{L1};
+        print $args->{L2};
+
 
 	});
 
 conditon with iterator
 
-    it({ L1 => qw|a b c| })->when( qw|L1 eq 'a'|  )->do( sub {
-        my $key = shift;
-        my @args = @_;
+    MFor->it({ L1 => qw|a b c| })->when( qw|L1 eq 'a'|  )->do( sub {
+
+        # only do something when L1 equal to 'a'
+        my $args = shift;
+
     })
 
 
