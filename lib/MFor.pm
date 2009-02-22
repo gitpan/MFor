@@ -4,38 +4,176 @@ use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(&mfor);
-our $VERSION = '0.03';
+our $VERSION = '0.05';
+
+# sub , (hash name) array ref , (arrays) array ref , scalar , scalar 
+# sub , (hash name) array ref , (arrays) array ref 
+# sub , (arrays) array ref ;
+# sub , (arrays) array ref , (arrays) array ref;
 
 sub mfor(&@);
-sub mfor(&@) {
-  my $cr = shift;
-  my $arrs = shift;
-  my ($arr_lev,$arr_idx) = @_ if ( @_ );
 
-  $arr_lev ||= 0;
-  my $arr_sz = scalar(@$arrs);
-  unless ($arr_idx) {
-    push @$arr_idx,0 for ( 1 .. $arr_sz  );
-  }
-  my $cur_arr = $arrs->[ $arr_lev ] ;
-  my $idx     = scalar(@$cur_arr);
-  if( $arr_sz == $arr_lev + 1 ) {
-    my @args = ();
-    my $tlev = 0;
-    push @args , $arrs->[ $tlev++ ]->[ $_ ] for ( @$arr_idx );
-    for my $i ( 0 .. $idx-1 ) {
-      $args[ $tlev - 1 ] = $arrs->[ $tlev - 1 ]->[ $i ];
-      $cr->( @args );
+sub mfor(&@) {
+    my $cr = shift;
+    my $h_arrs;
+
+    # warn ref( $_[0] );
+    # warn ref( $_[1] );
+
+    if ( ref( $_[0] ) eq 'ARRAY' and ref( $_[1] ) eq 'ARRAY' ) {
+        $h_arrs = shift;    # array
     }
-  } 
-  else {
-    for my $i ( 0 .. $idx-1  ) {
-      $arr_idx->[ $arr_lev ] = $i ;
-      mfor { &$cr } $arrs,$arr_lev + 1,$arr_idx;
+
+    my $arrs = shift;
+
+    # use Data::Dumper::Simple;
+    # warn Dumper( $arrs );
+
+    my ( $arr_lev, $arr_idx );
+    ( $arr_lev, $arr_idx ) = @_ if (@_);
+
+    $arr_lev ||= 0;
+    my $arr_sz = scalar(@$arrs);
+
+    unless ($arr_idx) {
+        push @$arr_idx, 0 for ( 1 .. $arr_sz );
     }
-    $arr_idx->[ $arr_lev ] = 0 ;
-  }
+
+    my $cur_arr = $arrs->[$arr_lev];
+    my $idx     = scalar(@$cur_arr);
+    if ( $arr_sz == $arr_lev + 1 ) {
+        my @args = ();
+        my $tlev = 0;
+
+        for (@$arr_idx) {
+            last if ( !$arrs->[$tlev]->[$_] );
+            push @args, $arrs->[$tlev]->[$_];
+            $tlev++;
+        }
+
+        for my $i ( 0 .. $idx - 1 ) {
+            $args[ $tlev - 1 ] = $arrs->[ $tlev - 1 ]->[$i];
+            if ($h_arrs) {
+                # merge args and hash key to a hash
+                my $index = 0;
+                my $hash_args = {};
+                map { $hash_args->{ $_ } = $args[$index++];  }  @$h_arrs;
+                $cr->( $hash_args );
+            }
+            else {
+                $cr->(@args);
+            }
+        }
+    }
+    else {
+        for my $i ( 0 .. $idx - 1 ) {
+            $arr_idx->[$arr_lev] = $i;
+            if ($h_arrs) {
+                mfor {&$cr} $h_arrs, $arrs, $arr_lev + 1, $arr_idx;
+            }
+            else {
+                mfor {&$cr} $arrs, $arr_lev + 1, $arr_idx;
+            }
+        }
+        $arr_idx->[$arr_lev] = 0;
+    }
 }
+
+
+sub it (@);
+sub it (@) {
+    if( ref $_[0] ) { # blessed
+        my $self = shift;
+
+        if( @_ and ref($_[0]) eq 'HASH' ) {
+            my %arr_hash = %{+ shift };
+            my ($key) = keys %arr_hash;
+            my @values = values %arr_hash;
+            $self->_sub_it_hash( $key , @values );
+        } else {
+            $self->_sub_it( @_ );
+        }
+
+
+        return $self;
+    } else {  # unblessed
+        # do bless
+        my $class = shift;
+        my $self = {};
+        $self = bless $self , $class;
+
+        $self->{ARRAY} = [];
+        if( @_ and ref($_[0]) eq 'HASH' ) {
+            my %arr_hash = %{+ shift };
+            $self->{HASH_NAME} = [];
+            my ($key) = keys %arr_hash;
+            my @values = values %arr_hash;
+            $self->_sub_it_hash( $key , @values );
+        } else {
+            $self->_sub_it( @_ );
+        }
+        return $self;
+    }
+}
+
+sub _sub_it_hash {
+    my $self = shift;
+    my ($key,@values) = @_;
+    push @{ $self->{HASH_NAME} }, $key;
+    push @{ $self->{ARRAY} }, @values;
+    return $self;
+}
+
+sub _sub_it {
+    my $self = shift;
+    push @{ $self->{ARRAY} }, [@_];
+    return $self;
+}
+
+
+sub when (%) {
+    my $self = shift;
+    my ($op_and,$op,$op_and2) = @_;
+    $self->{COND} = { OP1 => $op_and, OPAND => $op, OP2 => $op_and2 };
+    return $self;
+}
+
+sub do (&) {
+    my $self = shift;
+    my $sub  = shift;
+    my $array = [ @{ $self->{ARRAY} } ] ;
+
+    if ( defined $self->{HASH_NAME} ) {
+        mfor {
+            if ( defined $self->{COND} ) {
+                if ( defined $_[0]->{  $self->{COND}->{OP1} }  ) {
+                    my $ret;
+                    my $eval = sprintf(
+                        '$ret = ( %s %s %s ) ? 1 : 0;',
+                        $_[0]->{ $self->{COND}->{OP1} },
+                        $self->{COND}->{OPAND},
+                        $self->{COND}->{OP2}
+                    );
+                    eval $eval;
+                    $sub->(@_) if $ret;
+                }
+            }
+            else {
+
+                $sub->(@_);
+            }
+        }
+        $self->{HASH_NAME}, $array;
+    }
+    else{
+        mfor { 
+            $sub->( @_ ); 
+        } $array;
+    }
+    delete $self->{ARRAY};
+}
+
+
 1;
 
 __END__
@@ -65,6 +203,22 @@ insteads of:
       }
     }
   }
+
+
+Iterator!
+
+    it({ L1 => qw|a b c| })->it({ L2 =>  qw|X Y Z| })
+    ->do(sub {
+		my @args = @_;
+
+	});
+
+conditon with iterator
+
+    it({ L1 => qw|a b c| })->when( qw|L1 eq 'a'|  )->do( sub {
+        my $key = shift;
+        my @args = @_;
+    })
 
 
 =head1 DESCRIPTION
