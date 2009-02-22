@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                MFor
-version:             0.051
+version:             0.052
 abstract:            A module for multi-dimension looping.
 license:             ~
 author:              

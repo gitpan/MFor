@@ -4,12 +4,7 @@ use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(&mfor);
-our $VERSION = '0.051';
-
-# sub , (hash name) array ref , (arrays) array ref , scalar , scalar 
-# sub , (hash name) array ref , (arrays) array ref 
-# sub , (arrays) array ref ;
-# sub , (arrays) array ref , (arrays) array ref;
+our $VERSION = '0.052';
 
 sub mfor(&@);
 
@@ -17,17 +12,11 @@ sub mfor(&@) {
     my $cr = shift;
     my $h_arrs;
 
-    # warn ref( $_[0] );
-    # warn ref( $_[1] );
-
     if ( ref( $_[0] ) eq 'ARRAY' and ref( $_[1] ) eq 'ARRAY' ) {
         $h_arrs = shift;    # array
     }
 
     my $arrs = shift;
-
-    # use Data::Dumper::Simple;
-    # warn Dumper( $arrs );
 
     my ( $arr_lev, $arr_idx );
     ( $arr_lev, $arr_idx ) = @_ if (@_);
@@ -66,15 +55,20 @@ sub mfor(&@) {
         }
     }
     else {
-        for my $i ( 0 .. $idx - 1 ) {
-            $arr_idx->[$arr_lev] = $i;
-            if ($h_arrs) {
+
+        if ($h_arrs) {
+            for my $i ( 0 .. $idx - 1 ) {
+                $arr_idx->[$arr_lev] = $i;
                 mfor {&$cr} $h_arrs, $arrs, $arr_lev + 1, $arr_idx;
             }
-            else {
+        }
+        else {
+            for my $i ( 0 .. $idx - 1 ) {
+                $arr_idx->[$arr_lev] = $i;
                 mfor {&$cr} $arrs, $arr_lev + 1, $arr_idx;
             }
         }
+    
         $arr_idx->[$arr_lev] = 0;
     }
 }
@@ -131,7 +125,7 @@ sub _sub_it {
 }
 
 
-sub when (%) {
+sub when {
     my $self = shift;
     my ($op_and,$op,$op_and2) = @_;
     $self->{COND} = { OP1 => $op_and, OPAND => $op, OP2 => $op_and2 };
@@ -144,9 +138,11 @@ sub do (&) {
     my $array = [ @{ $self->{ARRAY} } ] ;
 
     if ( defined $self->{HASH_NAME} ) {
-        mfor {
-            if ( defined $self->{COND} ) {
-                if ( defined $_[0]->{  $self->{COND}->{OP1} }  ) {
+
+        if( defined $self->{COND} ) {
+
+            mfor {
+                if ( defined $_[0]->{ $self->{COND}->{OP1} } ) {
                     my $ret;
                     my $eval = sprintf(
                         '$ret = ( %s %s %s ) ? 1 : 0;',
@@ -157,13 +153,14 @@ sub do (&) {
                     eval $eval;
                     $sub->(@_) if $ret;
                 }
-            }
-            else {
+            }   $self->{HASH_NAME}, $array;
 
-                $sub->(@_);
-            }
+        } 
+
+        else {
+            mfor { $sub->(@_); } $self->{HASH_NAME}, $array;
         }
-        $self->{HASH_NAME}, $array;
+
     }
     else{
         mfor { 

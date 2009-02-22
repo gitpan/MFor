@@ -41,7 +41,7 @@ mfor {
 ];
 close FH;
 
-my @lines = split /\n/ , $output;
+@lines = split /\n/ , $output;
 # warn Dumper( @lines );use Data::Dumper;
 
 for my $e1 ( 1 .. 3 ) {
